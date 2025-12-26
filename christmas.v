@@ -546,3 +546,295 @@ Proof. split; reflexivity. Defined.
 
 Example max_unique_counterexample : gifts_of_type 5 12 <> 42.
 Proof. simpl. discriminate. Defined.
+
+(** ========================================================================= *)
+(** 4. PASCAL'S TRIANGLE CONNECTION                                          *)
+(** ========================================================================= *)
+
+(** ** 4.1 Pascal's Identity *)
+
+Theorem pascal_identity : forall n k,
+  C (S n) (S k) = C n k + C n (S k).
+Proof. reflexivity. Defined.
+
+Lemma C_overflow : forall n k, k > n -> C n k = 0.
+Proof.
+  induction n as [|n IH].
+  - intros k Hgt.
+    destruct k.
+    + lia.
+    + reflexivity.
+  - intros k Hgt.
+    destruct k as [|k].
+    + lia.
+    + simpl.
+      rewrite IH by lia.
+      rewrite IH by lia.
+      lia.
+Defined.
+
+Lemma C_n_n : forall n, C n n = 1.
+Proof.
+  induction n as [|n IHn].
+  - reflexivity.
+  - simpl.
+    rewrite IHn.
+    rewrite C_overflow by lia.
+    lia.
+Defined.
+
+Theorem C_sym : forall n k,
+  k <= n ->
+  C n k = C n (n - k).
+Proof.
+  induction n as [|n IH].
+  - intros k Hle.
+    replace k with 0 by lia.
+    reflexivity.
+  - intros k Hle.
+    destruct k as [|k].
+    + replace (S n - 0) with (S n) by lia.
+      rewrite C_0.
+      rewrite C_n_n.
+      reflexivity.
+    + destruct (Nat.eq_dec (S k) (S n)) as [Heq | Hneq].
+      * rewrite Heq.
+        replace (S n - S n) with 0 by lia.
+        rewrite C_0.
+        rewrite C_n_n.
+        reflexivity.
+      * simpl.
+        replace (S n - S k) with (S (n - S k)) by lia.
+        simpl.
+        assert (Hk : k <= n) by lia.
+        assert (Hsk : S k <= n) by lia.
+        assert (Hnsk : n - S k <= n) by lia.
+        assert (Hnk : n - k <= n) by lia.
+        rewrite (IH k Hk).
+        rewrite (IH (S k) Hsk).
+        replace (n - k) with (S (n - S k)) by lia.
+        lia.
+Defined.
+
+Lemma C_row_sum_aux : forall n k,
+  k <= n ->
+  C n k + C n (S k) = C (S n) (S k).
+Proof.
+  intros n k Hle.
+  simpl.
+  reflexivity.
+Defined.
+
+Fixpoint row_sum (n k : nat) : nat :=
+  match k with
+  | O => C n 0
+  | S k' => C n k + row_sum n k'
+  end.
+
+Example row_sum_2 : row_sum 2 2 = 4.
+Proof. reflexivity. Defined.
+
+Example row_sum_3 : row_sum 3 3 = 8.
+Proof. reflexivity. Defined.
+
+Example row_sum_4 : row_sum 4 4 = 16.
+Proof. reflexivity. Defined.
+
+Example row_sum_5 : row_sum 5 5 = 32.
+Proof. reflexivity. Defined.
+
+Example pascal_witness : C 5 2 = C 5 3.
+Proof. reflexivity. Defined.
+
+Example pascal_counterexample : C 6 2 <> C 6 3.
+Proof. discriminate. Defined.
+
+(** ** 4.2 Triangular and Tetrahedral as Diagonals *)
+
+Theorem T_is_diagonal_2 : forall n,
+  T n = C (n + 1) 2.
+Proof. exact T_eq_C. Defined.
+
+Theorem Te_is_diagonal_3 : forall n,
+  Te n = C (n + 2) 3.
+Proof. exact Te_eq_C. Defined.
+
+Definition diagonal_sum (d len : nat) : nat :=
+  fold_left (fun acc i => acc + C (i + d) d) (seq 0 len) 0.
+
+Lemma fold_left_plus_acc : forall l a b,
+  fold_left (fun acc x => acc + x) l (a + b) =
+  a + fold_left (fun acc x => acc + x) l b.
+Proof.
+  induction l as [|x l IH].
+  - intros.
+    reflexivity.
+  - intros a b.
+    simpl.
+    rewrite <- IH.
+    f_equal.
+    lia.
+Defined.
+
+Example diagonal_sum_0 : diagonal_sum 2 0 = 0.
+Proof. reflexivity. Defined.
+
+Example diagonal_sum_1 : diagonal_sum 2 1 = 1.
+Proof. reflexivity. Defined.
+
+Example diagonal_sum_2 : diagonal_sum 2 2 = 4.
+Proof. reflexivity. Defined.
+
+Example diagonal_sum_3 : diagonal_sum 2 3 = 10.
+Proof. reflexivity. Defined.
+
+Example diagonal_sum_4 : diagonal_sum 2 4 = 20.
+Proof. reflexivity. Defined.
+
+Example diagonal_sum_12 : diagonal_sum 2 12 = Te 12.
+Proof. reflexivity. Defined.
+
+Example diagonal_witness : diagonal_sum 2 5 = Te 5.
+Proof. reflexivity. Defined.
+
+Example diagonal_counterexample : diagonal_sum 2 5 <> Te 4.
+Proof. discriminate. Defined.
+
+(** ========================================================================= *)
+(** 5. ASYMPTOTIC BOUNDS                                                     *)
+(** ========================================================================= *)
+
+(** ** 5.1 Polynomial Bounds for Triangular Numbers *)
+
+Theorem T_lower_bound : forall n, 2 * T n >= n * n.
+Proof.
+  intro n.
+  rewrite T_closed.
+  nia.
+Defined.
+
+Theorem T_upper_bound : forall n, T n <= n * n.
+Proof.
+  exact quadratic_bound.
+Defined.
+
+Theorem T_asymptotic : forall n,
+  n * n <= 2 * T n /\ 2 * T n <= 2 * n * n.
+Proof.
+  intro n.
+  rewrite T_closed.
+  split.
+  - nia.
+  - nia.
+Defined.
+
+Example T_bounds_witness : 25 <= 2 * T 5 /\ 2 * T 5 <= 50.
+Proof. simpl. lia. Defined.
+
+Example T_bounds_counterexample : ~ (2 * T 5 < 25).
+Proof. simpl. lia. Defined.
+
+(** ** 5.2 Polynomial Bounds for Tetrahedral Numbers *)
+
+Theorem Te_lower_cubic : forall n, 6 * Te n >= n * n * n.
+Proof.
+  intro n.
+  rewrite Te_closed.
+  nia.
+Defined.
+
+Theorem Te_upper_cubic : forall n, 6 * Te n <= n * n * n + 3 * n * n + 2 * n.
+Proof.
+  intro n.
+  rewrite Te_closed.
+  nia.
+Defined.
+
+Theorem Te_asymptotic : forall n,
+  n * n * n <= 6 * Te n /\ 6 * Te n <= (n + 2) * (n + 2) * (n + 2).
+Proof.
+  intro n.
+  rewrite Te_closed.
+  split.
+  - nia.
+  - nia.
+Defined.
+
+Theorem Te_cubic_ratio : forall n,
+  n > 0 ->
+  Te n * 6 = n * n * n + 3 * n * n + 2 * n.
+Proof.
+  intros n Hpos.
+  rewrite Nat.mul_comm.
+  rewrite Te_closed.
+  nia.
+Defined.
+
+Example Te_cubic_witness : 6 * Te 10 = 10 * 11 * 12.
+Proof. reflexivity. Defined.
+
+Example Te_cubic_counterexample : 6 * Te 10 <> 1000.
+Proof. discriminate. Defined.
+
+(** ** 5.3 Growth Rate Comparison *)
+
+Example Te_and_T_at_2 : Te 2 = 4 /\ T 2 = 3.
+Proof. split; reflexivity. Defined.
+
+Example Te_and_T_at_5 : Te 5 = 35 /\ T 5 = 15.
+Proof. split; reflexivity. Defined.
+
+Example Te_and_T_at_12 : Te 12 = 364 /\ T 12 = 78.
+Proof. split; reflexivity. Defined.
+
+Example Te_double_T_at_2 : Te 2 = 2 * T 2 - 2.
+Proof. reflexivity. Defined.
+
+Example Te_double_T_at_5 : Te 5 = 2 * T 5 + 5.
+Proof. reflexivity. Defined.
+
+Example growth_witness : Te 5 - 2 * T 5 = 5.
+Proof. reflexivity. Defined.
+
+Example growth_counterexample : Te 2 - 2 * T 2 = 0.
+Proof. reflexivity. Defined.
+
+(** ========================================================================= *)
+(** 6. GENERATING FUNCTION CONNECTION (COMPUTATIONAL)                       *)
+(** ========================================================================= *)
+
+Fixpoint partial_sums_aux (l : list nat) (acc : nat) : list nat :=
+  match l with
+  | nil => nil
+  | x :: xs => (acc + x) :: partial_sums_aux xs (acc + x)
+  end.
+
+Definition partial_sums (l : list nat) : list nat := partial_sums_aux l 0.
+
+Definition ones (n : nat) : list nat := repeat 1 n.
+
+Example ones_5 : ones 5 = 1 :: 1 :: 1 :: 1 :: 1 :: nil.
+Proof. reflexivity. Defined.
+
+Example ps_ones_5 : partial_sums (ones 5) = 1 :: 2 :: 3 :: 4 :: 5 :: nil.
+Proof. reflexivity. Defined.
+
+Example ps_ps_ones_5 : partial_sums (partial_sums (ones 5)) =
+                        1 :: 3 :: 6 :: 10 :: 15 :: nil.
+Proof. reflexivity. Defined.
+
+Example ps_ps_ps_ones_5 : partial_sums (partial_sums (partial_sums (ones 5))) =
+                           1 :: 4 :: 10 :: 20 :: 35 :: nil.
+Proof. reflexivity. Defined.
+
+Example T_from_ps : nth 4 (partial_sums (partial_sums (ones 5))) 0 = T 5.
+Proof. reflexivity. Defined.
+
+Example Te_from_ps : nth 4 (partial_sums (partial_sums (partial_sums (ones 5)))) 0 = Te 5.
+Proof. reflexivity. Defined.
+
+Example gf_witness : nth 4 (partial_sums (partial_sums (ones 6))) 0 = T 5.
+Proof. reflexivity. Defined.
+
+Example gf_counterexample : nth 5 (partial_sums (partial_sums (ones 6))) 0 <> T 5.
+Proof. discriminate. Defined.
